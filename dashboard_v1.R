@@ -2,6 +2,8 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(shinymanager)
+library(DBI)
+library(RSQLite)
 
 credentials <- data.frame(
 	user = c("admin","tech", "client"),
@@ -74,7 +76,10 @@ server <- function(input,output, session){
 	output$auth_status <- renderPrint({reactiveValuesToList(res_auth)})
 
 	logs_data <- reactive({
-		read.csv("logs.csv")
+		conn <- dbConnect(RSQLite::SQLite(), "security_logs.db")
+		logs <- dbGetQuery(conn, "SELECT * FROM logs ORDER BY timestamp DESC") #de más reciente a más antiguo
+		dbDisconnect(conn)
+		return(logs)
 	})
 
 	output$access_logs <- renderDT({
