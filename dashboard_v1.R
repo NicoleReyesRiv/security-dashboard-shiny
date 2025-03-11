@@ -6,9 +6,9 @@ library(DBI)
 library(RSQLite)
 
 credentials <- data.frame(
-	user = c("admin","tech", "client"),
-	password = c("admin123","tech123", "client123"), #contraseñas texto plano
-	role = c("admin","tech", "client"),
+	user = c("admin", "client"),
+	password = c("admin123", "client123"), #contraseñas texto plano
+	role = c("admin", "client"),
 	stringsAsFactors=FALSE 
 )
 
@@ -89,7 +89,7 @@ server <- function(input,output, session){
 	output$sidebar <- renderMenu({
 		sidebarMenu(
 			menuItem("Panel principal", tabName="dashboard", icon=icon("tachometer-alt")),
-			if (user_role() == "admin" || user_role() == "tech"){
+			if (user_role() == "admin"){
 			  list(
 				menuItem("Seguridad", tabName="security",icon=icon("shield-alt")),
 				menuItem("Estado del sistema", tabName="system", icon=icon("server"))
