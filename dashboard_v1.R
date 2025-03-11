@@ -5,14 +5,14 @@ library(shinymanager)
 library(DBI)
 library(RSQLite)
 
-credentials <- data.frame(
-	user = c("admin", "client"),
-	password = c("admin123", "client123"), #contraseñas texto plano
-	role = c("admin", "client"),
-	stringsAsFactors=FALSE 
-)
+get_users <- function() {
+	conn <- dbConnect(RSQLite::RSQLite(),"users.db")
+	users <- dbGetQuery(conn,"SELECT user, password, role FROM users")
+	dbDisconnect(conn)
+	return(users)
+}
 
-credentials$password <- sapply(credentials$password, sodium::password_store) #contraseñas encriptadas
+
 
 ui <- secure_app(
 	dashboardPage(
@@ -67,8 +67,11 @@ ui <- secure_app(
 ))
 
 server <- function(input,output, session){
+	credentials <- get_users()	
+	
+
 	res_auth <- secure_server(
-		check_credentials = check_credentials(credentials)
+		check_credentials = check_credentials(credentials, passphrase = "random_secret")
 	)
 	
 	user_role <- reactive({res_auth$role})
