@@ -6,7 +6,7 @@ library(DBI)
 library(RSQLite)
 
 get_users <- function() {
-	conn <- dbConnect(RSQLite::RSQLite(),"users.db")
+	conn <- DBI::dbConnect(RSQLite::SQLite(), "users.db")
 	users <- dbGetQuery(conn,"SELECT user, password, role FROM users")
 	dbDisconnect(conn)
 	return(users)
@@ -68,7 +68,7 @@ ui <- secure_app(
 
 server <- function(input,output, session){
 	credentials <- get_users()	
-	
+	print(credentials)
 
 	res_auth <- secure_server(
 		check_credentials = check_credentials(credentials, passphrase = "random_secret")
