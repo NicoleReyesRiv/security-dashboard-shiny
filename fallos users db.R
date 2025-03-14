@@ -6,7 +6,6 @@ library(DBI)
 library(RSQLite)
 library(keyring)
 
-print("empezando")
 credentials <- data.frame(
 	user = c("admin", "client"),
 	password = c("admin123","client123"),
@@ -17,7 +16,6 @@ credentials <- data.frame(
 	stringAsFactors = FALSE
 )
 
-#print("pasado")
 
 #Recuperar la passphrase de forma segura
 passphrase <- key_get("R-shinymanager-key", "nicol")
