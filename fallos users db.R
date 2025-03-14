@@ -130,14 +130,15 @@ server <- function(input,output, session){
             		menuItem("Logs", tabName = "logs", icon = icon("file-alt"))
         		))
     		}
-    		role <- tryCatch(res_auth$user, error = function(e) NULL)
-    
+    		#role <- tryCatch(res_auth$user, error = function(e) NULL)
+		role <- tryCatch(res_auth$admin, error = function(e) NULL)    		
+
     		sidebar_items <- list(
         		menuItem("Panel principal", tabName = "dashboard", icon = icon("tachometer-alt")),
         		menuItem("Logs", tabName = "logs", icon = icon("file-alt"))
     		)
     
-    		if (!is.null(role) && role == "admin") {
+    		if (!is.null(role) && role == TRUE) {
         		sidebar_items <- append(sidebar_items, list(
             		menuItem("Seguridad", tabName = "security", icon = icon("shield-alt")),
             		menuItem("Estado del sistema", tabName = "system", icon = icon("server"))
