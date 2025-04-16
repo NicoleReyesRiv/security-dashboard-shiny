@@ -221,7 +221,7 @@ server <- function(input, output, session){
 		valueBox(
 			value= attacks_total_number(),
 			subtitle = "Número total de ataques detectados Q1 2025",
-			icon = icon("shield-virus"),
+			#icon = icon("shield-alt"),
 			color = "red"
 		)
 	})
