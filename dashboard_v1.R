@@ -8,7 +8,15 @@ library(scrypt)
 library(DBI)
 library(readxl)
 
-db_connection <- dbConnect(RSQLite::SQLite(), "C:/Users/nicol/OneDrive/Documentos/proyectos R/TFG/v3/logs.sqlite")
+### rutas del proyecto
+base <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny"
+ruta_usuarios_sqlite <- file.path(base, "users.sqlite")
+ruta_logs_sqlite <- file.path(base, "logs.sqlite")
+ruta_excel_ataques <- file.path(base, "Informe_Ciberataques_Q1_2025_con_estado.xlsx")
+
+
+
+db_connection <- dbConnect(RSQLite::SQLite(), ruta_logs_sqlite)
 
 
 ui <- secure_app(
@@ -73,7 +81,7 @@ ui <- secure_app(
 server <- function(input, output, session){
 
 	attacks_data <- reactive({
-		readxl::read_excel("C:/Users/nicol/OneDrive/Documentos/proyectos R/TFG/v3/Informe_Ciberataques_Q1_2025_con_estado.xlsx")
+		readxl::read_excel(ruta_excel_ataques)
 	})
 
 	attacks_total_number <- reactive({
@@ -163,7 +171,7 @@ server <- function(input, output, session){
 	
 	res_auth <- secure_server(
     		check_credentials = secure_credentials(
-        		"C:/Users/nicol/OneDrive/Documentos/proyectos R/TFG/v3/users.sqlite",
+        		ruta_usuarios_sqlite,
         		passphrase = key_get("R-shinymanager-key", "nicol")
         		# passphrase = "passphrase_wihtout_keyring"
 		)
@@ -224,7 +232,7 @@ server <- function(input, output, session){
 			col = c("red","orange","yellow","green"),
 			main = "Ataques en curso por nivel de impacto",
 			ylab = "Número de ataques",
-			xlab= "Nivel de impacto"
+			xlab= "Nivel de impacto",
 			las=1
 		)
 	})
