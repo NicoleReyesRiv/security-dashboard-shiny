@@ -31,16 +31,20 @@ ui <- secure_app(
 				tabItem(
   					tabName= "dashboard",
   					fluidRow(
-						box(title="Accesos recientes", width=6, status="success", plotOutput("access_summary")),
-   	 					box(title="Intentos de acceso fallidos", width=6, status="danger", plotOutput("failed_attempts")),
-					
+						box(title="Distribución de ataques detectados por categoría", width=8, status="info", plotOutput("attacks_clasification"))					
 	  				),
 					fluidRow(
-    						box(title="Intentos de ataques detectados", width=12, status="warning",
-		 				fluidRow(
-							column(4, valueBoxOutput("attacks_total")),
-							column(8, plotOutput("impact_graph")))
+						box(
+							title="Intentos de ataques detectados", 
+							width=12, 
+							status="warning",
+							fluidRow(
+								column(3,infoBoxOutput("attacks_total")),
+								column(9,plotOutput("impact_graph"))
+							)					
 						)
+						
+    					
   					)
 				),
 				tabItem(
@@ -69,7 +73,12 @@ ui <- secure_app(
   					tabName="logs",
   					fluidRow(
     						box(title="Registro de accesos", width=12, status="primary", DT::DTOutput("access_logs"))
-  					)
+  					),
+					fluidRow(
+						box(title="Accesos recientes", width=6, status="success", plotOutput("access_summary")),
+   	 					box(title="Intentos de acceso fallidos", width=6, status="danger", plotOutput("failed_attempts")),
+					
+	  				)
 
 				)
 			)
@@ -204,9 +213,7 @@ server <- function(input, output, session){
 		)
 		}else{
 		sidebarMenu(
-			menuItem("Panel principal", tabName="dashboard", icon=icon("tachometer-alt")),
-			menuItem("Logs", tabName="logs", icon=icon("file-alt"))
-
+			menuItem("Panel principal", tabName="dashboard", icon=icon("tachometer-alt"))
 		)
 		}
 	})
@@ -217,12 +224,14 @@ server <- function(input, output, session){
 	})
 	
 	
-	output$attacks_total <- renderValueBox({
-		valueBox(
+	output$attacks_total <- renderInfoBox({
+		infoBox(
 			value= attacks_total_number(),
-			subtitle = "Número total de ataques detectados Q1 2025",
-			#icon = icon("shield-alt"),
-			color = "red"
+			title = "Número total",
+			subtitle="Nº total",
+			icon = icon("list"),
+			color = "red",
+			
 		)
 	})
 
@@ -235,6 +244,33 @@ server <- function(input, output, session){
 			xlab= "Nivel de impacto",
 			las=1
 		)
+	})
+
+	output$attacks_clasification <- renderPlot({
+		df <- readxl::read_excel(ruta_excel_ataques)
+		df_valid <- df[!tolower(df$`Estado de Resolución`) %in% "descartado",]
+		counts <- table(df_valid$Categoría, df_valid$`Estado de Resolución`)
+		counts_df <- as.data.frame.matrix(counts)
+
+		counts_df <- counts_df[order(rowSums(counts_df)), , drop=FALSE]
+		
+		total_max <- max(rowSums(counts_df))
+
+		par(mar = c(5, 20, 4, 2)) #ampliar margen izquierdo para los nombres largos
+		
+		barplot(
+			height = t(as.matrix(counts_df[, c("cerrado", "en curso")])),
+			beside = FALSE,
+			horiz = TRUE,
+			col = c("green","orange"),
+			legend.text = c("Cerrado","En curso"),
+			args.legend = list(x = "bottomright", bty = "n"),
+			main="Ataques detectados por categoría",
+			xlab = "Número de ataques",
+			las = 1,
+			xaxt = "n"
+		)
+		axis(1, at = 0:ceiling(total_max), labels=0:ceiling(total_max))
 	})
 
 }
