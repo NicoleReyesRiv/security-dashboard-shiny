@@ -50,8 +50,14 @@ ui <- secure_app(
 				tabItem(
   					tabName="security",
   					fluidRow(
-    						box(title="Intentos de ataque detectados", width=6, status="danger", tableOutput("attack_table")),
-    						box(title="IPs sospechosas", width=6, status="warning", tableOutput("ip_blacklist"))
+    						box(title="Intentos de ataques detectados", width=12, status="warning", DT::DTOutput("attack_table")),
+    						#box(title="IPs sospechosas", width=6, status="warning", tableOutput("ip_blacklist"))
+  					),
+					fluidRow(
+    						box(title="Gestión de incidentes", width=12, status="danger", plotOutput("attack_category_state"))
+  					),
+					fluidRow(
+    						box(title="Evolución temporal de los ataques detectados", width=12, status="info", plotOutput("attack_timeline"))
   					),
   					fluidRow(
     						box(title="Mapa de amenazas", width=12, status="info", plotOutput("threat_map"))
@@ -271,6 +277,49 @@ server <- function(input, output, session){
 			xaxt = "n"
 		)
 		axis(1, at = 0:ceiling(total_max), labels=0:ceiling(total_max))
+	})
+
+	output$attack_table <- DT::renderDT({
+		df <- readxl::read_excel(ruta_excel_ataques)
+		DT::datatable(
+			df, options = list(pageLength=10, autoWidth=TRUE, scrollX=TRUE), filter="top", rownames=FALSE
+		)
+	})
+
+	output$attack_category_state <- renderPlot({
+		df <- readxl::read_excel(ruta_excel_ataques)
+		counts <- table(df$`Categoría`, df$`Estado de Resolución`)
+		counts_df <- as.data.frame.matrix(counts)
+		counts_df <- counts_df[order(rowSums(counts_df)), , drop=FALSE]
+
+		par(mar=c(5,20,4,2))
+		barplot(
+			height = t(as.matrix(counts_df)),
+			beside = FALSE, horiz=TRUE, col= c("green","orange","grey"),
+			legend.text=colnames(counts_df), args.legend=list(x="bottomright", bty="n"),
+			xlab="Número de ataques", main="Ataques por categoría y estado de resolución", las=1
+		)
+	})
+
+	output$attack_timeline <- renderPlot({
+		df <- readxl::read_excel(ruta_excel_ataques)
+		df$Fecha <- as.Date(df$`Fecha de Detección`)
+		df <- df[!tolower(df$`Estado de Resolución`) %in% "descartado",]
+		
+		timeline <- as.data.frame(table(df$Fecha))
+		names(timeline) <- c("Fecha","Frecuencia")
+		timeline$Fecha <- as.Date(timeline$Fecha)
+		
+		plot(
+			timeline$Fecha, timeline$Frecuencia,
+			type="l", lwd=2, col="blue", main="Ataques detectados por día",
+			xlab="Fecha", ylab="Número de ataques", xaxt="n"
+		)
+		axis.Date(1, at = seq(min(timeline$Fecha), max(timeline$Fecha), by="week"), format = "%d %b")
+
+		#axis(2,at=seq(0, max(timeline$Frecuencia), by=1), labels=seq(0, max(timeline$Frecuencia), by=1))
+		points(timeline$Fecha, timeline$Frecuencia, pch=19, col="blue")
+		
 	})
 
 }
