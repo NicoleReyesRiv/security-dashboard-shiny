@@ -1,5 +1,4 @@
 library(shinymanager)
-library(shinymanager)
 library(keyring)
 library(DBI)
 library(RSQLite)
