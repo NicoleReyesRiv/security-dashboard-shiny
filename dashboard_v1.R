@@ -149,8 +149,8 @@ server <- function(input, output, session){
 		}
 	})
 
-	log_access <- function(user,status,session){
-		ip <- tryCatch(session$clientData$REMOTE_ADDR, error= function(e) NA)
+	log_access <- function(user, status, session){
+		ip <- tryCatch(session$clientData$REMOTE_ADDR, error = function(e) NA)
 		if (is.null(ip) || length(ip) != 1 || is.na(ip) || ip == ""){
     			ip <- "Desconocido"
   		}
@@ -162,25 +162,57 @@ server <- function(input, output, session){
   		}
 
 		timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-		DBI::dbExecute(db_connection, "INSERT INTO logs (timestamp,user,ip,status,country)VALUES (?,?,?,?,?)", params= list(timestamp,user,ip,status,"Desconocido"))
+
+
+		if (status == "fallido"){
+			dbExecute(db_connection,
+				"UPDATE logs SET failed_attempts = failed_attempts + 1 WHERE user = ? AND ip = ?",
+				params = list(timestamp, user, ip))
+
+			dbExecute(db_connection, 
+				"INSERT INTO logs (timestamp, user, ip, status, country, failed_attempts) VALUES (?,?,?,?,?, ?)", 
+				params = list(timestamp, user, ip, status, "Desconocido", failed_attempts))
+
+		}else {
+		    dbExecute(db_connection,
+				"UPDATE logs SET failed_attempts = 0 WHERE user = ? AND ip = ?",
+				params = list(user, ip))
+			dbExecute(db_connection, 
+				"INSERT INTO logs (timestamp, user, ip, status, country, failed_attempts) VALUES (?,?,?,?,?, ?)", 
+				params = list(timestamp, user, ip, status, "Desconocido", 0))
+		}
+		
 	}
 	
-	secure_credentials <- function(users_db_path, passphrase){
-		function(user,password){
-				creds <- shinymanager::check_credentials(
-					db= users_db_path,
-					passphrase = passphrase
-				)
-				result <- creds(user,password)
 
-				if(result$result){
-					user_logged <- if(!is.null(result) && "user"%in% names(result)) result$user else user
-					log_access(user=user_logged, status="exitoso",session=shiny::getDefaultReactiveDomain())
-					return(result)
-				}else{
-					log_access(user=user, status="fallido",session=shiny::getDefaultReactiveDomain())
-					return(NULL)
-				}
+	attempt_limit <- 5
+
+	secure_credentials <- function(users_db_path, passphrase){
+		function(user, password, session){
+			ip <- tryCatch(session$clientData$REMOTE_ADDR, error = function(e) NA)
+
+			check_attempts <- dbGetQuery(db_connection, 
+			"SELECT failed_attempts FROM logs WHERE user = ?" ORDER BY timestamp DESC LIMIT 1, params = list(user))
+
+			if(nrow(check_attempts) > 0 && check_attempts$failed_attempts >= attempt_limit){
+				showNotification("Demasiados intentos fallidos, inténtalo de nuevo más tarde.", type = "error")
+				return(NULL)
+			}
+
+			creds <- shinymanager::check_credentials(
+				db= users_db_path,
+				passphrase = passphrase
+			)
+			result <- creds(user, password)
+
+			if(result$result){
+				user_logged <- if(!is.null(result) && "user"%in% names(result)) result$user else user
+				log_access(user=user_logged, status="exitoso",session=shiny::getDefaultReactiveDomain())
+				return(result)
+			}else{
+				log_access(user=user, status="fallido",session=shiny::getDefaultReactiveDomain())
+				return(NULL)
+			}
 		}
 	}
 	
