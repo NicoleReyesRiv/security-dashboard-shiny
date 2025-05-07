@@ -2,21 +2,21 @@ library(DBI)
 library(RSQLite)
 
 logs_db <- function(){
-	db_path <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/logs.sqlite"
-	
-	conn <- dbConnect(RSQLite::SQLite(), db_path)
+  db_path <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/logs.sqlite"
+  conn <- dbConnect(RSQLite::SQLite(), db_path)
 
-	dbExecute(conn, "
-		CREATE TABLE IF NOT EXISTS logs (
-			timestamp TEXT, 
-			user TEXT,
-			ip TEXT,
-			status TEXT,
-			country TEXT
-		)
+  dbExecute(conn, "
+	  CREATE TABLE IF NOT EXISTS logs (
+		timestamp TEXT, 
+		user TEXT,
+		ip TEXT,
+		status TEXT,
+		country TEXT,
+		failed_attempts INTEGER DEFAULT 0
+	  )
 
-	") 	
-	dbExecute(conn, "
+	")
+  dbExecute(conn, "
   		INSERT INTO logs (timestamp, user, ip, status, country) VALUES
   		('2024-02-22 10:30:00', 'admin', '192.168.1.1', 'exitoso', 'España'),
   		('2024-02-22 10:32:15', 'admin', '203.0.113.5', 'fallido', 'EE.UU.'),
@@ -26,7 +26,7 @@ logs_db <- function(){
 	")
 
 
-	dbDisconnect(conn)
+  dbDisconnect(conn)
 }
 
 logs_db()
