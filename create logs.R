@@ -25,7 +25,8 @@ logs_db <- function(){
   dbExecute(conn, "
     CREATE TABLE IF NOT EXISTS login_limit (
 	  user TEXT PRIMARY KEY,
-	  attempts INTEGER DEFAULT 0
+	  attempts INTEGER DEFAULT 0,
+	  last_attempt TEXT
 	)
   ")
 
