@@ -117,7 +117,7 @@ server <- function(input, output, session){
 			plot.new()
 			title("No hay datos de accesos")
 		}else{
-			summary <- table(logs$status)
+			summary <- table(factor(logs$status, levels = c("exitoso", "fallido")))
 			barplot(
 				summary, 
 				col = c("green","red")[match(names(summary),c("exitoso","fallido"))],
@@ -150,10 +150,10 @@ server <- function(input, output, session){
 	})
 
 	log_access <- function(user, status, session){
-		ip <- tryCatch(session$clientData$REMOTE_ADDR, error = function(e) NA)
-		if (is.null(ip) || length(ip) != 1 || is.na(ip) || ip == ""){
-    			ip <- "Desconocido"
-  		}
+#		ip <- tryCatch(session$clientData$REMOTE_ADDR, error = function(e) NA)
+#		if (is.null(ip) || length(ip) != 1 || is.na(ip) || ip == ""){
+#    			ip <- "Desconocido"
+#  		}
 		if (is.null(user) || length(user) != 1 || is.na(user) || user == ""){
     			user <- "Desconocido"
   		}
@@ -166,37 +166,48 @@ server <- function(input, output, session){
 
 		if (status == "fallido"){
 			dbExecute(db_connection,
-				"UPDATE logs SET failed_attempts = failed_attempts + 1 WHERE user = ? AND ip = ?",
-				params = list(timestamp, user, ip))
-
-			dbExecute(db_connection, 
-				"INSERT INTO logs (timestamp, user, ip, status, country, failed_attempts) VALUES (?,?,?,?,?, ?)", 
-				params = list(timestamp, user, ip, status, "Desconocido", failed_attempts))
-
+				"INSERT OR REPLACE INTO login_limit (user, attempts, last_attempt) 
+				VALUES (?, COALESCE((SELECT attempts FROM login_limit WHERE user = ?), 0) + 1, ?)",
+				params = list(user,user, timestamp))
 		}else {
-		    dbExecute(db_connection,
-				"UPDATE logs SET failed_attempts = 0 WHERE user = ? AND ip = ?",
-				params = list(user, ip))
-			dbExecute(db_connection, 
-				"INSERT INTO logs (timestamp, user, ip, status, country, failed_attempts) VALUES (?,?,?,?,?, ?)", 
-				params = list(timestamp, user, ip, status, "Desconocido", 0))
+			dbExecute(db_connection,
+				"INSERT OR REPLACE INTO login_limit (user, attempts, last_attempt) 
+				VALUES (?, 0, NULL)",
+				params = list(user))
+
 		}
+		dbExecute(db_connection, "INSERT INTO logs (timestamp,user,status,country)VALUES (?,?,?,?)", params= list(timestamp,user,status,"Desconocido"))
 		
 	}
 	
 
 	attempt_limit <- 5
+	time_limit <- 120 #seconds
 
 	secure_credentials <- function(users_db_path, passphrase){
 		function(user, password, session){
 			ip <- tryCatch(session$clientData$REMOTE_ADDR, error = function(e) NA)
 
 			check_attempts <- dbGetQuery(db_connection, 
-			"SELECT failed_attempts FROM logs WHERE user = ?" ORDER BY timestamp DESC LIMIT 1, params = list(user))
+			"SELECT attempts, last_attempt FROM login_limit WHERE user = ?", params = list(user))
 
-			if(nrow(check_attempts) > 0 && check_attempts$failed_attempts >= attempt_limit){
-				showNotification("Demasiados intentos fallidos, inténtalo de nuevo más tarde.", type = "error")
-				return(NULL)
+			if(nrow(check_attempts) > 0){
+				last <- as.POSIXct(check_attempts$last_attempt, format="%Y-%m-%d %H:%M:%S")
+				now <- Sys.time()
+
+				
+				if (check_attempts$attempts >= attempt_limit){
+					if(!is.na(last) && difftime(now, last, units = "secs") < time_limit){
+						showNotification("Demasiados intentos fallidos. Inténtalo de nuevo más tarde.", type = "error")
+					}
+				}
+
+				dbExecute(db_connection, "UPDATE login_limit SET attempts = attempts + 1, last_attempt = ? WHERE user = ?",
+				params = list(format(now, "%Y-%m-%d %H:%M:%S"),user))
+			
+			}else{
+				dbExecute(db_connection, "INSERT INTO login_limit (user, attempts, last_attempt) VALUES (?, 1, ?)",
+				params = list(user, format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
 			}
 
 			creds <- shinymanager::check_credentials(
@@ -206,7 +217,11 @@ server <- function(input, output, session){
 			result <- creds(user, password)
 
 			if(result$result){
-				user_logged <- if(!is.null(result) && "user"%in% names(result)) result$user else user
+				user_logged <- if(!is.null(result) && "user" %in% names(result)){
+					result$user
+				}else{ 
+					user
+				}
 				log_access(user=user_logged, status="exitoso",session=shiny::getDefaultReactiveDomain())
 				return(result)
 			}else{
