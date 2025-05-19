@@ -6,25 +6,28 @@ logs_db <- function(){
   conn <- dbConnect(RSQLite::SQLite(), db_path)
 
   dbExecute(conn, "
-	  CREATE TABLE IF NOT EXISTS logs (
-		timestamp TEXT, 
-		user TEXT,
-		ip TEXT,
-		status TEXT,
-		country TEXT,
-		failed_attempts INTEGER DEFAULT 0
-	  )
+	CREATE TABLE IF NOT EXISTS logs (
+	  timestamp TEXT, 
+	  user TEXT,
+	  status TEXT,
+	  country TEXT
+	)
+  ")
 
-	")
+#  dbExecute(conn, "
+#  		INSERT INTO logs (timestamp, user, status, country) VALUES
+#  		('2024-02-22 10:30:00', 'admin', 'exitoso', 'España'),
+#  		('2024-02-22 10:32:15', 'admin', 'fallido', 'EE.UU.'),
+#  		('2024-02-22 10:35:00', 'viewer', 'exitoso', 'Alemania'),
+#  		('2024-02-22 10:40:00', 'viewer', 'exitoso', 'España'),
+#  		('2024-02-22 10:45:22', 'admin', 'fallido', 'Reino Unido')
+#	")
   dbExecute(conn, "
-  		INSERT INTO logs (timestamp, user, ip, status, country) VALUES
-  		('2024-02-22 10:30:00', 'admin', '192.168.1.1', 'exitoso', 'España'),
-  		('2024-02-22 10:32:15', 'admin', '203.0.113.5', 'fallido', 'EE.UU.'),
-  		('2024-02-22 10:35:00', 'viewer', '45.67.89.10', 'exitoso', 'Alemania'),
-  		('2024-02-22 10:40:00', 'viewer', '192.168.1.2', 'exitoso', 'España'),
-  		('2024-02-22 10:45:22', 'admin', '185.76.9.34', 'fallido', 'Reino Unido')
-	")
-
+    CREATE TABLE IF NOT EXISTS login_limit (
+	  user TEXT PRIMARY KEY,
+	  attempts INTEGER DEFAULT 0
+	)
+  ")
 
   dbDisconnect(conn)
 }
