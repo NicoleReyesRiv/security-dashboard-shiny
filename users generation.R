@@ -7,6 +7,7 @@ credentials <- data.frame(
   user = c("admin", "viewer"),
   password = c("?O4F0W2Q^=(n", "31fnE5;=}x$S"),
   admin = c(TRUE, FALSE),
+  
   stringAsFactors = FALSE
 )
 
@@ -17,3 +18,15 @@ create_db(
   sqlite_path = "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/users.sqlite",
   passphrase = key_get("R-shinymanager-key", "nicol")
 )
+
+#conn <- dbConnect(RSQLite::SQLite(), "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/users.sqlite")
+
+#if (!"must_change_password" %in% dbListFields(conn, "credentials")){
+#		dbExecute(conn, "ALTER TABLE credentials ADD COLUMN must_change_password INTEGER DEFAULT 1")
+#}
+
+#dbExecute(conn, "UPDATE credentials SET must_change_password = 1")
+
+#dbDisconnect(conn)
+
+
