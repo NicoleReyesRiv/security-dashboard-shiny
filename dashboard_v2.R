@@ -13,7 +13,7 @@ library(shinyjs)
 base <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny"
 ruta_usuarios_sqlite <- file.path(base, "users.sqlite")
 ruta_logs_sqlite <- file.path(base, "logs.sqlite")
-ruta_ataques_sqlite <- file.path(base, "app_data.sqlite")
+ruta_ataques_sqlite <- file.path(base, "cyberattacks.sqlite")
 
 
 
@@ -337,9 +337,9 @@ server <- function(input, output, session){
 	})
 
 	output$attacks_clasification <- renderPlot({
-		df <- readxl::read_excel(ruta_excel_ataques)
-		df_valid <- df[!tolower(df$`Estado de Resolución`) %in% "descartado",]
-		counts <- table(df_valid$Categoría, df_valid$`Estado de Resolución`)
+		df <- DBI::dbReadTable(db_conn_attacks, "cyberattacks")
+		df_valid <- df[!tolower(df$`EstadoResolución`) %in% "descartado",]
+		counts <- table(df_valid$Categoría, df_valid$`EstadoResolución`)
 		counts_df <- as.data.frame.matrix(counts)
 
 		counts_df <- counts_df[order(rowSums(counts_df)), , drop=FALSE]
