@@ -7,27 +7,34 @@ library(jsonlite)
 library(scrypt)
 library(DBI)
 library(readxl)
+library(shinyjs)
 
 ### rutas del proyecto
 base <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny"
 ruta_usuarios_sqlite <- file.path(base, "users.sqlite")
 ruta_logs_sqlite <- file.path(base, "logs.sqlite")
-ruta_excel_ataques <- file.path(base, "Informe_Ciberataques_Q1_2025_con_estado.xlsx")
+ruta_ataques_sqlite <- file.path(base, "app_data.sqlite")
 
 
 
 db_connection <- dbConnect(RSQLite::SQLite(), ruta_logs_sqlite)
 db_conn <- dbConnect(RSQLite::SQLite(), ruta_usuarios_sqlite)
-
-
-
-
-#options("shinymanager.password_validation" = validate_password_custom)
+db_conn_attacks <- dbConnect(RSQLite::SQLite(), ruta_ataques_sqlite)
 
 options("shinymanager.pwd_validity" = 0)
 
-ui <- secure_app(
 
+ui <- secure_app(
+	tagList(useShinyjs(), tags$script(HTML("
+		var idleTimer;
+		function resetTimer() {
+			clearTimeout(idleTimer); idleTimer = setTimeout(function(){
+				Shiny.setInputValue('session_expired', true, {priority: 'event'});
+			}, 1*60*1000);
+		}
+		$(document).on('mousemove keydown click scroll', resetTimer);
+		resetTimer();
+	")),
 	dashboardPage(
 		dashboardHeader(title="Security Dashboard"),
 		dashboardSidebar(
@@ -65,9 +72,6 @@ ui <- secure_app(
   					),
 					fluidRow(
     						box(title="Evolución temporal de los ataques detectados", width=12, status="info", plotOutput("attack_timeline"))
-  					),
-  					fluidRow(
-    						box(title="Mapa de amenazas", width=12, status="info", plotOutput("threat_map"))
   					)
 				),
 				tabItem(
@@ -97,19 +101,29 @@ ui <- secure_app(
 			)
 		)
 	), enable_admin = TRUE
-)
+))
 
 validate_password_custom <- function(pwd){
 		print(paste("SI ENTRA EN LA FUNCION VALIDATE PASS CUSTOM"))
-		all(vapply(
+		es_valida <- all(vapply(
 			X = c("[0-9]+", "[a-z]+", "[A-Z]+", "[[:punct:]]+", ".{8,}"),
 			FUN = grepl, x = pwd, FUN.VALUE = logical(1)))
+		if(! es_valida){
+			showNotification("La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales.", type = "error")
+		}
+		return(es_valida)
 }
 
 server <- function(input, output, session){
 	
+	observeEvent(input$session_expired, {
+		showNotification("Sesión expirada por inactividad", type = "warning")
+		session$reload()
+	})
+
 	attacks_data <- reactive({
-		readxl::read_excel(ruta_excel_ataques)
+		data <- dbReadTable(db_conn_attacks, "cyberattacks")
+		data
 	})
 
 	attacks_total_number <- reactive({
@@ -357,7 +371,7 @@ server <- function(input, output, session){
 	})
 
 	output$attack_category_state <- renderPlot({
-		df <- readxl::read_excel(ruta_excel_ataques)
+		df <- DBI::dbReadTable(db_conn_attacks, "cyberattacks")
 		counts <- table(df$`Categoría`, df$`Estado de Resolución`)
 		counts_df <- as.data.frame.matrix(counts)
 		counts_df <- counts_df[order(rowSums(counts_df)), , drop=FALSE]
