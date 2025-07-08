@@ -5,8 +5,13 @@ library(readxl)
 informe_ciberataques_db <- function(){
   excel_path <-  "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/Informe_Ciberataques_Q1_2025_con_estado.xlsx" 
   data <- read_excel(excel_path)
-  db_path <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/app_data.sqlite"
+
+  names(data) <- c("Id", "Categoría", "Descripción", "Impacto", "FechaDetección", "EstadoResolución")
+
+  db_path <- "C:/Users/nicol/OneDrive/Documentos/GitHub/security-dashboard-shiny/cyberattacks.sqlite"
   conn <- dbConnect(RSQLite::SQLite(), db_path)
+
+  data$FechaDetección <- format(as.Date(data$FechaDetección), "%Y-%m-%d")
 
   dbExecute(conn, "
 	CREATE TABLE IF NOT EXISTS cyberattacks (
@@ -14,8 +19,8 @@ informe_ciberataques_db <- function(){
 	  Categoría TEXT,
 	  Descripción TEXT,
 	  Impacto TEXT,
-	  Fecha_Detección TEXT,
-	  Estado_Resolución TEXT
+	  FechaDetección TEXT,
+	  EstadoResolución TEXT
 	)
   ")
 
