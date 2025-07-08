@@ -30,7 +30,7 @@ ui <- secure_app(
 		function resetTimer() {
 			clearTimeout(idleTimer); idleTimer = setTimeout(function(){
 				Shiny.setInputValue('session_expired', true, {priority: 'event'});
-			}, 1*60*1000);
+			}, 10*60*1000);
 		}
 		$(document).on('mousemove keydown click scroll', resetTimer);
 		resetTimer();
@@ -45,7 +45,7 @@ ui <- secure_app(
 				tabItem(
   					tabName= "dashboard",
   					fluidRow(
-						box(title="Distribución de ataques detectados por categoría", width=8, status="info", plotOutput("attacks_clasification"))					
+						box(title="Distribución de ataques detectados por categoría", width=12, status="info", plotOutput("attacks_clasification"))					
 	  				),
 					fluidRow(
 						box(
@@ -74,16 +74,6 @@ ui <- secure_app(
     						box(title="Evolución temporal de los ataques detectados", width=12, status="info", plotOutput("attack_timeline"))
   					)
 				),
-				tabItem(
-  					tabName="system",
-  					fluidRow(
-    						box(title="Uso de CPU", width=6, status="info", plotOutput("cpu_usage")),
-    						box(title="Uso de RAM", width=6, status="info", plotOutput("ram_usage"))
-  					),
-  					fluidRow(
-    						box(title="Estado de los servidores", width=12, status="success", tableOutput("server_status"))
-  					)
-				),
 
 				# Panel de Logs
 				tabItem(
@@ -104,7 +94,6 @@ ui <- secure_app(
 ))
 
 validate_password_custom <- function(pwd){
-		print(paste("SI ENTRA EN LA FUNCION VALIDATE PASS CUSTOM"))
 		es_valida <- all(vapply(
 			X = c("[0-9]+", "[a-z]+", "[A-Z]+", "[[:punct:]]+", ".{8,}"),
 			FUN = grepl, x = pwd, FUN.VALUE = logical(1)))
@@ -128,13 +117,13 @@ server <- function(input, output, session){
 
 	attacks_total_number <- reactive({
 		df <- attacks_data()
-		nrow(df[!tolower(df$`Estado de Resolución`) %in% "descartado",])
+		nrow(df[!tolower(df$`EstadoResolución`) %in% "descartado",])
 	})
 
 	impact_in_progress <- reactive({
 		df <- attacks_data()
-		in_progress <- df[tolower(df$`Estado de Resolución`) == "en curso",]
-		table(in_progress$`Nivel de Impacto`)
+		in_progress <- df[tolower(df$`EstadoResolución`) == "en curso",]
+		table(in_progress$`Impacto`)
 	})
 
 	output$access_summary <- renderPlot ({
@@ -298,7 +287,6 @@ server <- function(input, output, session){
   		sidebarMenu(
     			menuItem("Panel principal", tabName="dashboard", icon=icon("tachometer-alt")),
 			menuItem("Seguridad", tabName="security", icon=icon("shield-alt")),
-        		menuItem("Estado del sistema", tabName="system", icon=icon("server")),
 			menuItem("Logs", tabName="logs", icon=icon("file-alt"))
 		)
 		}else{
@@ -364,7 +352,8 @@ server <- function(input, output, session){
 	})
 
 	output$attack_table <- DT::renderDT({
-		df <- readxl::read_excel(ruta_excel_ataques)
+		df <- DBI::dbReadTable(db_conn_attacks, "cyberattacks")
+
 		DT::datatable(
 			df, options = list(pageLength=10, autoWidth=TRUE, scrollX=TRUE), filter="top", rownames=FALSE
 		)
@@ -372,7 +361,7 @@ server <- function(input, output, session){
 
 	output$attack_category_state <- renderPlot({
 		df <- DBI::dbReadTable(db_conn_attacks, "cyberattacks")
-		counts <- table(df$`Categoría`, df$`Estado de Resolución`)
+		counts <- table(df$`Categoría`, df$`EstadoResolución`)
 		counts_df <- as.data.frame.matrix(counts)
 		counts_df <- counts_df[order(rowSums(counts_df)), , drop=FALSE]
 
@@ -386,9 +375,9 @@ server <- function(input, output, session){
 	})
 
 	output$attack_timeline <- renderPlot({
-		df <- readxl::read_excel(ruta_excel_ataques)
-		df$Fecha <- as.Date(df$`Fecha de Detección`)
-		df <- df[!tolower(df$`Estado de Resolución`) %in% "descartado",]
+		df <- DBI::dbReadTable(db_conn_attacks, "cyberattacks")
+		df$Fecha <- as.Date(df$`FechaDetección`)
+		df <- df[!tolower(df$EstadoResolución) %in% "descartado",]
 		
 		timeline <- as.data.frame(table(df$Fecha))
 		names(timeline) <- c("Fecha","Frecuencia")
