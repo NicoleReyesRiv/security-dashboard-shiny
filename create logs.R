@@ -9,8 +9,7 @@ logs_db <- function(){
 	CREATE TABLE IF NOT EXISTS logs (
 	  timestamp TEXT, 
 	  user TEXT,
-	  status TEXT,
-	  country TEXT
+	  status TEXT
 	)
   ")
 
